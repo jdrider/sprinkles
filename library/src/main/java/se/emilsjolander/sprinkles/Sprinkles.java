@@ -89,7 +89,7 @@ public class Sprinkles {
     }
 	
 	public String getDatabaseName(){
-		return databaseName();
+		return databaseName;
 	}
 	
 	public void setDatabaseName(String dbName){
