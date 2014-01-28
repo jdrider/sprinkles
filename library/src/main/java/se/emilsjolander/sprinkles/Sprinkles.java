@@ -23,6 +23,8 @@ public class Sprinkles {
 	Context mContext;
 	List<Migration> mMigrations = new ArrayList<Migration>();
     Map<Class, TypeSerializer> typeSerializers = new ConcurrentHashMap<Class, TypeSerializer>();
+	
+	private String databaseName = "sprinkles.db";
 
 	private Sprinkles() {
 		addStandardTypeSerializers();
@@ -85,5 +87,13 @@ public class Sprinkles {
     public <T> void registerType(Class<T> clazz, TypeSerializer<T> serializer) {
         typeSerializers.put(clazz, serializer);
     }
+	
+	public String getDatabaseName(){
+		return databaseName();
+	}
+	
+	public void setDatabaseName(String dbName){
+		databaseName = dbName;
+	}
 
 }

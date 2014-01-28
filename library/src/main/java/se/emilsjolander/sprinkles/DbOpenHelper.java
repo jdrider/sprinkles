@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 class DbOpenHelper extends SQLiteOpenHelper {
 	
 	private DbOpenHelper(Context context) {
-		super(context, "sprinkles.db", null,
+		super(context, Sprinkles.sInstance.getDatabaseName(), null,
 				Sprinkles.sInstance.mMigrations.size());
 	}
 
