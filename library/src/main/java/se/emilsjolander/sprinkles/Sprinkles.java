@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import se.emilsjolander.sprinkles.exceptions.NoTypeSerializerFoundException;
+import se.emilsjolander.sprinkles.exceptions.SprinklesNotInitializedException;
+import se.emilsjolander.sprinkles.typeserializers.BitmapSerializer;
 import se.emilsjolander.sprinkles.typeserializers.BooleanSerializer;
 import se.emilsjolander.sprinkles.typeserializers.DateSerializer;
 import se.emilsjolander.sprinkles.typeserializers.DoubleSerializer;
@@ -17,18 +20,22 @@ import se.emilsjolander.sprinkles.typeserializers.LongSerializer;
 import se.emilsjolander.sprinkles.typeserializers.StringSerializer;
 import se.emilsjolander.sprinkles.typeserializers.TypeSerializer;
 
-public class Sprinkles {
+public final class Sprinkles {
 
-	static Sprinkles sInstance;
-	Context mContext;
-	List<Migration> mMigrations = new ArrayList<Migration>();
-    Map<Class, TypeSerializer> typeSerializers = new ConcurrentHashMap<Class, TypeSerializer>();
-	
-	private String databaseName = "sprinkles.db";
+    static Sprinkles sInstance;
+    static SQLiteDatabase sDatabase;
 
-	private Sprinkles() {
-		addStandardTypeSerializers();
-	}
+    Context mContext;
+    List<Migration> mMigrations = new ArrayList<Migration>();
+
+    private String databaseName;
+    private int initialDatabaseVersion;
+
+    private Map<Class, TypeSerializer> typeSerializers = new ConcurrentHashMap<Class, TypeSerializer>();
+
+    private Sprinkles() {
+        addStandardTypeSerializers();
+    }
 
     private void addStandardTypeSerializers() {
         typeSerializers.put(int.class, new IntSerializer());
@@ -48,52 +55,99 @@ public class Sprinkles {
 
         typeSerializers.put(String.class, new StringSerializer());
         typeSerializers.put(Date.class, new DateSerializer());
+        typeSerializers.put(Bitmap.class, new BitmapSerializer());
+    }
+
+    /**
+     * Initialize sprinkles so queries and migrations can be performed
+     *
+     * @param context A context which is used for database operations. This context is not saved, however it's application context is.
+     * @return The singleton Sprinkles instance. Use this to add migrations.
+     *
+     * The default DB name is "sprinkles.db".
+     */
+    public static synchronized Sprinkles init(Context context) {
+        return init(context, "sprinkles.db", 0);
     }
 
     /**
      *
+     * Initialize sprinkles so queries can be performed
+     *
      * @param context
      *      A context which is used for database operations. This context is not saved, however it's application context is.
      *
-     * @return The singleton Sprinkles instance. Use this to add migrations.
+     * @param databaseName
+     *     The name of the database to use.
+     *     This is useful if you start to use Sprinkles with an app with an existing DB.
+     *
+     * @param initialDatabaseVersion
+     *     The version of the existing database.
+     *
+     * @return The singleton Sprinkles instance.
      */
-	public static Sprinkles getInstance(Context context) {
-		if (sInstance == null) {
-			sInstance = new Sprinkles();
-		}
-		sInstance.mContext = context.getApplicationContext();
-		return sInstance;
-	}
+    public static synchronized Sprinkles init(Context context, String databaseName, int initialDatabaseVersion) {
+        if (sInstance == null) {
+            sInstance = new Sprinkles();
+        }
+        sInstance.mContext = context.getApplicationContext();
+        sInstance.databaseName = databaseName;
+        sInstance.initialDatabaseVersion = initialDatabaseVersion;
+        return sInstance;
+    }
+
+    /**
+     * Use init() instead.
+     */
+    @Deprecated
+    public static synchronized Sprinkles getInstance(Context context) {
+        return init(context);
+    }
+
+    /**
+     * Throws SprinklesNotInitializedException if you try to access the database before initializing Sprinkles.
+     * @return the SQL Database used by Sprinkles.
+     */
+    static synchronized SQLiteDatabase getDatabase() {
+        if(sInstance == null) {
+           throw new SprinklesNotInitializedException();
+        }
+
+        if(sDatabase == null) {
+            DbOpenHelper dbOpenHelper = new DbOpenHelper(sInstance.mContext, sInstance.databaseName, sInstance.initialDatabaseVersion);
+            sDatabase = dbOpenHelper.getWritableDatabase();
+        }
+
+        return sDatabase;
+    }
 
     /**
      * Used by unit tests to reset sprinkles instances between tests. This method can change at any time and should
      * never be called outside of a unit test.
      */
-    public static void dropInstances() {
+    public static synchronized void dropInstances() {
         sInstance = null;
-        DbOpenHelper.sInstance = null;
+        sDatabase = null;
     }
 
     /**
      * Add migrations to the underlying database. Every migration increments the database version.
      *
-     * @param migration
-     *      The migration that should be performed.
+     * @param migration The migration that should be performed.
      */
-	public void addMigration(Migration migration) {
-		mMigrations.add(migration);
-	}
+    public void addMigration(Migration migration) {
+        mMigrations.add(migration);
+    }
 
     public <T> void registerType(Class<T> clazz, TypeSerializer<T> serializer) {
         typeSerializers.put(clazz, serializer);
     }
-	
-	public String getDatabaseName(){
-		return databaseName;
-	}
-	
-	public void setDatabaseName(String dbName){
-		databaseName = dbName;
-	}
+
+    TypeSerializer getTypeSerializer(Class<?> type) {
+        if (!typeSerializers.containsKey(type)) {
+            throw new NoTypeSerializerFoundException(type);
+        }
+        return typeSerializers.get(type);
+    }
 
 }

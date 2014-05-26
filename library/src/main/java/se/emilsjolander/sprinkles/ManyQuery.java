@@ -35,7 +35,8 @@ public final class ManyQuery<T extends QueryResult> {
     }
 
 	Class<T> resultClass;
-	String sqlQuery;
+    String placeholderQuery;
+	String rawQuery;
 
 	ManyQuery() {
 	}
@@ -46,8 +47,8 @@ public final class ManyQuery<T extends QueryResult> {
      * @return the result of the query. Remember to close me!
      */
 	public CursorList<T> get() {
-		final SQLiteDatabase db = DbOpenHelper.getInstance();
-		final Cursor c = db.rawQuery(sqlQuery, null);
+		final SQLiteDatabase db = Sprinkles.getDatabase();
+		final Cursor c = db.rawQuery(rawQuery, null);
 		return new CursorList<T>(c, resultClass);
 	}
 
@@ -62,19 +63,17 @@ public final class ManyQuery<T extends QueryResult> {
      *
      * @param respondsToUpdatedOf
      *      A list of models excluding the queried model that should also trigger a update to the result if they change.
+     *
+     * @return the id of the loader.
      */
-	@SuppressWarnings("unchecked")
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public void getAsync(LoaderManager lm,
-			ResultHandler<T> handler,
-			Class<?>... respondsToUpdatedOf) {
+    public int getAsync(LoaderManager lm, ResultHandler<T> handler, Class<? extends Model>... respondsToUpdatedOf) {
         if (Model.class.isAssignableFrom(resultClass)) {
             respondsToUpdatedOf = Utils.concatArrays(respondsToUpdatedOf, new Class[]{resultClass});
         }
-		final int loaderId = sqlQuery.hashCode();
-		lm.initLoader(loaderId, null,
-				getLoaderCallbacks(sqlQuery, resultClass, handler,
-						(Class<? extends Model>[]) respondsToUpdatedOf));
+		final int loaderId = placeholderQuery.hashCode();
+		lm.restartLoader(loaderId, null, getLoaderCallbacks(rawQuery, resultClass, handler, respondsToUpdatedOf));
+        return loaderId;
 	}
 
 
@@ -89,25 +88,25 @@ public final class ManyQuery<T extends QueryResult> {
      *
      * @param respondsToUpdatedOf
      *      A list of models excluding the queried model that should also trigger a update to the result if they change.
+     *
+     * @return the id of the loader.
      */
-    @SuppressWarnings("unchecked")
-	public void getAsync(android.support.v4.app.LoaderManager lm,
-			ResultHandler<T> handler,
-			Class<?>... respondsToUpdatedOf) {
+	public int getAsync(android.support.v4.app.LoaderManager lm, ResultHandler<T> handler, Class<? extends Model>... respondsToUpdatedOf) {
         if (Model.class.isAssignableFrom(resultClass)) {
             respondsToUpdatedOf = Utils.concatArrays(respondsToUpdatedOf, new Class[]{resultClass});
         }
-		final int loaderId = sqlQuery.hashCode();
-		lm.initLoader(loaderId, null,
-				getSupportLoaderCallbacks(sqlQuery, resultClass, handler,
-                        (Class<? extends Model>[]) respondsToUpdatedOf));
+		final int loaderId = placeholderQuery.hashCode();
+		lm.restartLoader(loaderId, null, getSupportLoaderCallbacks(rawQuery, resultClass, handler, respondsToUpdatedOf));
+        return loaderId;
 	}
 
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    private LoaderCallbacks<Cursor> getLoaderCallbacks(final String sqlQuery,
-                                                       final Class<T> resultClass,
-                                                       final ResultHandler<T> handler,
-                                                       final Class<? extends Model>[] respondsToUpdatedOf) {
+    private LoaderCallbacks<Cursor> getLoaderCallbacks(
+            final String sqlQuery,
+            final Class<T> resultClass,
+            final ResultHandler<T> handler,
+            final Class<? extends Model>[] respondsToUpdatedOf) {
+
         return new LoaderCallbacks<Cursor>() {
 
             @Override
@@ -135,6 +134,7 @@ public final class ManyQuery<T extends QueryResult> {
 			final String sqlQuery, final Class<T> resultClass,
 			final ResultHandler<T> handler,
 			final Class<? extends Model>[] respondsToUpdatedOf) {
+
 		return new android.support.v4.app.LoaderManager.LoaderCallbacks<Cursor>() {
 
 			@Override
@@ -156,8 +156,7 @@ public final class ManyQuery<T extends QueryResult> {
 			@Override
 			public android.support.v4.content.Loader<Cursor> onCreateLoader(
 					int id, Bundle args) {
-				return new SupportCursorLoader(Sprinkles.sInstance.mContext,
-						sqlQuery, respondsToUpdatedOf);
+				return new SupportCursorLoader(Sprinkles.sInstance.mContext, sqlQuery, respondsToUpdatedOf);
 			}
 		};
 	}

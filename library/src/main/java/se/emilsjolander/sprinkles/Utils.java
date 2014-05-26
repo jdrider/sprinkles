@@ -2,7 +2,6 @@ package se.emilsjolander.sprinkles;
 
 import android.content.ContentValues;
 import android.database.Cursor;
-import android.database.DatabaseUtils;
 import android.net.Uri;
 
 import java.lang.reflect.Array;
@@ -12,6 +11,7 @@ import java.util.List;
 
 import se.emilsjolander.sprinkles.annotations.Table;
 import se.emilsjolander.sprinkles.exceptions.NoTableAnnotationException;
+import se.emilsjolander.sprinkles.typeserializers.TypeSerializer;
 
 class Utils {
 	
@@ -26,7 +26,7 @@ class Utils {
                 }
 				column.field.setAccessible(true);
 				final Class<?> type = column.field.getType();
-                Object o = Sprinkles.sInstance.typeSerializers.get(type).unpack(c, column.name);
+                Object o = Sprinkles.sInstance.getTypeSerializer(type).unpack(c, column.name);
                 column.field.set(result, o);
 			}
 			return result;
@@ -38,10 +38,10 @@ class Utils {
 	static String getWhereStatement(Model m) {
         final ModelInfo info = ModelInfo.from(m.getClass());
 		final StringBuilder where = new StringBuilder();
-        final Object[] args = new Object[info.primaryKeys.size()];
+        final Object[] args = new Object[info.keys.size()];
 
-		for (int i = 0; i < info.primaryKeys.size(); i++) {
-			final ModelInfo.StaticColumnField column = info.primaryKeys.get(i);
+		for (int i = 0; i < info.keys.size(); i++) {
+			final ModelInfo.ColumnField column = info.keys.get(i);
 			where.append(column.name);
 			where.append("=?");
 
@@ -53,7 +53,7 @@ class Utils {
             }
 
             // split where statements with AND
-			if (i < info.primaryKeys.size()-1) {
+			if (i < info.keys.size()-1) {
 				where.append(" AND ");
 			}
 		}
@@ -65,8 +65,8 @@ class Utils {
 		final ModelInfo info = ModelInfo.from(model.getClass());
 		final ContentValues values = new ContentValues();
 		
-		for (ModelInfo.StaticColumnField column : info.staticColumns) {
-			if (column.isAutoIncrement) {
+		for (ModelInfo.ColumnField column : info.columns) {
+			if (column.isAutoIncrement || column.isDynamic) {
 				continue;
 			}
 			column.field.setAccessible(true);
@@ -76,9 +76,7 @@ class Utils {
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
-			if (value != null) {
-                Sprinkles.sInstance.typeSerializers.get(value.getClass()).pack(value, values, column.name);
-			}
+            Sprinkles.sInstance.getTypeSerializer(column.field.getType()).pack(value, values, column.name);
 		}
 		
 		return values;
@@ -100,12 +98,9 @@ class Utils {
             return sql;
         }
         for (Object o : args) {
-            if (o instanceof Number) {
-                sql = sql.replaceFirst("\\?", o.toString());
-            } else {
-                String escapedString = DatabaseUtils.sqlEscapeString(o.toString());
-                sql = sql.replaceFirst("\\?", escapedString);
-            }
+            TypeSerializer typeSerializer = Sprinkles.sInstance.getTypeSerializer(o.getClass());
+            String sqlObject = typeSerializer.toSql(o);
+            sql = sql.replaceFirst("\\?", sqlObject);
         }
         return sql;
     }

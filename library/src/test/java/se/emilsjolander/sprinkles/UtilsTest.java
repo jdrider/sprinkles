@@ -12,9 +12,11 @@ import org.robolectric.annotation.Config;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Date;
 
-import se.emilsjolander.sprinkles.annotations.AutoIncrementPrimaryKey;
+import se.emilsjolander.sprinkles.annotations.AutoIncrement;
 import se.emilsjolander.sprinkles.annotations.Column;
+import se.emilsjolander.sprinkles.annotations.Key;
 import se.emilsjolander.sprinkles.annotations.Table;
 import se.emilsjolander.sprinkles.exceptions.NoTableAnnotationException;
 
@@ -26,7 +28,8 @@ public class UtilsTest {
 
     public static class AbsTestModel extends Model {
 
-        @AutoIncrementPrimaryKey
+        @Key
+        @AutoIncrement
         @Column("id") private long id;
 
         public long getId() {
@@ -56,7 +59,7 @@ public class UtilsTest {
 
     @Before
     public void initSprinkles() {
-        Sprinkles.getInstance(Robolectric.application);
+        Sprinkles.init(Robolectric.application);
     }
 
     @Test
@@ -109,6 +112,13 @@ public class UtilsTest {
     public void insertSqlArgs() {
         String result = Utils.insertSqlArgs("? ?", new Object[]{1, "hej"});
         assertEquals(result, "1 'hej'");
+    }
+
+    @Test
+    public void insertTypeSerializedSqlArgs() {
+        Date date = new Date();
+        String result = Utils.insertSqlArgs("?", new Object[]{date});
+        assertEquals(result, ""+date.getTime());
     }
 
     @Test

@@ -1,5 +1,6 @@
 package se.emilsjolander.sprinkles;
 
+import android.content.ContentValues;
 import android.database.ContentObserver;
 import android.os.Handler;
 
@@ -13,101 +14,45 @@ import org.robolectric.annotation.Config;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import se.emilsjolander.sprinkles.annotations.AutoIncrementPrimaryKey;
-import se.emilsjolander.sprinkles.annotations.Column;
-import se.emilsjolander.sprinkles.annotations.Table;
-
 import static junit.framework.Assert.*;
 
 @Config(emulateSdk = 18)
 @RunWith(RobolectricTestRunner.class)
 public class ModelTest {
 
-    @Table("Tests")
-    public static class TestModel extends Model {
-
-        @AutoIncrementPrimaryKey
-        @Column("id") private long id;
-
-        @Column("title")
-        private String title;
-
-        private boolean valid = true;
-        public boolean created;
-        public boolean saved;
-        public boolean deleted;
-
-        public long getId() {
-            return id;
-        }
-
-        public void setId(long id) {
-            this.id = id;
-        }
-
-        public void setTitle(String title) {
-            this.title = title;
-        }
-
-        public String getTitle() {
-            return title;
-        }
-
-        public void setValid(boolean valid) {
-            this.valid = valid;
-        }
-
-        @Override
-        public boolean isValid() {
-            return valid;
-        }
-
-        @Override
-        public void beforeCreate() {
-            created = true;
-        }
-
-        @Override
-        public void beforeSave() {
-            saved = true;
-        }
-
-        @Override
-        public void afterDelete() {
-            deleted = true;
-        }
-
-    }
-
     @Before
     public void initTables() {
         Sprinkles.dropInstances();
-        Sprinkles sprinkles = Sprinkles.getInstance(Robolectric.application);
-        sprinkles.addMigration(new Migration().createTable(TestModel.class));
+        Sprinkles sprinkles = Sprinkles.init(Robolectric.application);
+        sprinkles.addMigration(TestModel.MIGRATION);
     }
 
     @Test
     public void isValid() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
 
-        m.setValid(false);
+        m.valid = false;
         assertFalse(m.save());
 
-        m.setValid(true);
+        m.valid = true;
         assertTrue(m.save());
     }
 
     @Test
     public void beforeCreate() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
-
+        m.title = "hej";
         m.save();
+
+        ContentValues contentValues = Utils.getContentValues(m);
+        assertEquals(2, contentValues.size());
+        assertNotNull(contentValues.get("created_at"));
+
         assertTrue(m.created);
         m.created = false;
 
-        m.setTitle("tjena");
+        m.title = "tjena";
         m.save();
         assertFalse(m.created);
     }
@@ -115,13 +60,13 @@ public class ModelTest {
     @Test
     public void beforeSave() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
 
         m.save();
         assertTrue(m.saved);
         m.saved = false;
 
-        m.setTitle("tjena");
+        m.title = "tjena";
         m.save();
         assertTrue(m.saved);
     }
@@ -129,7 +74,7 @@ public class ModelTest {
     @Test
     public void afterDelete() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
 
         m.save();
         assertFalse(m.deleted);
@@ -141,7 +86,7 @@ public class ModelTest {
     @Test
     public void exists() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
 
         assertFalse(m.exists());
         m.save();
@@ -151,7 +96,7 @@ public class ModelTest {
     @Test
     public void save() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
 
         m.save();
         assertTrue(m.exists());
@@ -160,7 +105,7 @@ public class ModelTest {
     @Test
     public void setAutoIncrementKeyOnCreate() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
         m.save();
         assertFalse(m.id == 0);
     }
@@ -168,11 +113,12 @@ public class ModelTest {
     @Test
     public void saveWithNullField() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
         assertTrue(m.save());
-        m.setTitle(null);
+        assertEquals(Query.one(TestModel.class, "select * from Tests").get().title, "hej");
+        m.title = null;
         assertTrue(m.save());
-        assertEquals(Query.one(TestModel.class, "select * from Tests").get().getTitle(), "hej");
+        assertEquals(Query.one(TestModel.class, "select * from Tests").get().title, null);
     }
 
     @Test
@@ -180,7 +126,7 @@ public class ModelTest {
         final CountDownLatch latch = new CountDownLatch(1);
 
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
         m.saveAsync(new Model.OnSavedCallback() {
             @Override
             public void onSaved() {
@@ -194,7 +140,7 @@ public class ModelTest {
     @Test
     public void delete() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
 
         m.save();
         m.delete();
@@ -206,7 +152,7 @@ public class ModelTest {
         final CountDownLatch latch = new CountDownLatch(1);
 
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
         m.save();
         m.deleteAsync(new Model.OnDeletedCallback() {
             @Override
@@ -221,7 +167,7 @@ public class ModelTest {
     @Test
     public void notifyContentChangeOnSave() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
         final boolean[] notified = new boolean[1];
         Sprinkles.sInstance.mContext.getContentResolver().
                 registerContentObserver(Utils.getNotificationUri(TestModel.class), false, new ContentObserver(new Handler()) {
@@ -237,7 +183,7 @@ public class ModelTest {
     @Test
     public void notifyContentChangeOnDelete() {
         TestModel m = new TestModel();
-        m.setTitle("hej");
+        m.title = "hej";
         m.save();
         final boolean[] notified = new boolean[1];
         Sprinkles.sInstance.mContext.getContentResolver().
