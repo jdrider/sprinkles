@@ -32,7 +32,6 @@ public final class Sprinkles {
     Context mContext;
     List<Migration> mMigrations = new ArrayList<Migration>();
 
-    private String databaseName;
     private int initialDatabaseVersion;
 
     private Map<Class, TypeSerializer> typeSerializers = new ConcurrentHashMap<Class, TypeSerializer>();
