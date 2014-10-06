@@ -145,14 +145,6 @@ public final class Sprinkles {
     public <T> void registerType(Class<T> clazz, TypeSerializer<T> serializer) {
         typeSerializers.put(clazz, serializer);
     }
-	
-	public String getDatabaseName(){
-		return databaseName;
-	}
-	
-	public void setDatabaseName(String dbName){
-		databaseName = dbName;
-	}
 
     TypeSerializer getTypeSerializer(Class<?> type) {
         if (!typeSerializers.containsKey(type)) {
