@@ -11,34 +11,11 @@ import org.robolectric.annotation.Config;
 
 import java.util.List;
 
-import se.emilsjolander.sprinkles.annotations.AutoIncrementPrimaryKey;
-import se.emilsjolander.sprinkles.annotations.Column;
-import se.emilsjolander.sprinkles.annotations.Table;
-import se.emilsjolander.sprinkles.annotations.Unique;
-
 import static org.junit.Assert.*;
 
 @Config(emulateSdk = 18)
 @RunWith(RobolectricTestRunner.class)
 public class CursorListTest {
-
-    @Table("Tests")
-    public static class TestModel extends Model {
-
-        @AutoIncrementPrimaryKey
-        @Column("id") private long id;
-
-        @Column("title")
-        private String title;
-
-        public void setTitle(String title) {
-            this.title = title;
-        }
-
-        public String getTitle() {
-            return title;
-        }
-    }
 
     private CursorList<TestModel> list;
 
@@ -58,18 +35,18 @@ public class CursorListTest {
 
     @Test
     public void size() {
-        assertTrue(list.size() == 3);
+        assertEquals(list.size(), 3);
     }
 
     @Test
     public void get() {
-        assertTrue(list.get(1).getTitle().equals("title2"));
+        assertEquals(list.get(1).title, "title2");
     }
 
     @Test
     public void asList() {
         List<TestModel> list = this.list.asList();
-        assertTrue(list.get(1).getTitle().equals(this.list.get(1).getTitle()));
+        assertEquals(list.get(1).title, this.list.get(1).title);
     }
 
     @Test

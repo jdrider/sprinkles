@@ -1,8 +1,9 @@
 package se.emilsjolander.sprinkles;
 
+import android.content.ContentValues;
 import android.os.AsyncTask;
-
 import se.emilsjolander.sprinkles.Transaction.OnTransactionCommittedListener;
+import se.emilsjolander.sprinkles.exceptions.ContentValuesEmptyException;
 
 public abstract class Model implements QueryResult {
 
@@ -67,7 +68,7 @@ public abstract class Model implements QueryResult {
 
     /**
      * Save this model to the database.
-     * If this model has an @AutoIncrementPrimaryKey annotation on a property
+     * If this model has an @AutoIncrement annotation on a property
      * than that property will be set when this method returns.
      *
      * @return whether or not the save was successful.
@@ -84,7 +85,7 @@ public abstract class Model implements QueryResult {
 
     /**
      * Save this model to the database within the given transaction.
-     * If this model has an @AutoIncrementPrimaryKey annotation on a property
+     * If this model has an @AutoIncrement annotation on a property
      * than that property will be set when this method returns.
      *
      * @param t
@@ -97,25 +98,33 @@ public abstract class Model implements QueryResult {
 			return false;
 		}
 
+        boolean doesExist = exists();
+        if (!doesExist) {
+            beforeCreate();
+        }
+
         beforeSave();
-        if (exists()) {
-            if (t.update(Utils.getTableName(getClass()),
-                    Utils.getContentValues(this), Utils.getWhereStatement(this)) == 0) {
+        final ContentValues cv = Utils.getContentValues(this);
+        if (cv.size() == 0) {
+            throw new ContentValuesEmptyException();
+        }
+        final String tableName = Utils.getTableName(getClass());
+        if (doesExist) {
+            if (t.update(tableName, cv, Utils.getWhereStatement(this)) == 0) {
                 return false;
             }
         } else {
-            beforeCreate();
-            long id = t.insert(Utils.getTableName(getClass()), Utils.getContentValues(this));
+            long id = t.insert(tableName, cv);
             if (id == -1) {
                 return false;
             }
 
             // set the @AutoIncrement column if one exists
             final ModelInfo info = ModelInfo.from(getClass());
-            if (info.autoIncrementColumn != null) {
-                info.autoIncrementColumn.field.setAccessible(true);
+            if (info.autoIncrementField != null) {
+                info.autoIncrementField.field.setAccessible(true);
                 try {
-                    info.autoIncrementColumn.field.set(this, id);
+                    info.autoIncrementField.field.set(this, id);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -127,7 +136,7 @@ public abstract class Model implements QueryResult {
 			@Override
 			public void onTransactionCommitted() {
 				Sprinkles.sInstance.mContext.getContentResolver().notifyChange(
-						Utils.getNotificationUri(Model.this.getClass()), null);
+						Utils.getNotificationUri(Model.this.getClass()), null, true);
 			}
 		});
 
