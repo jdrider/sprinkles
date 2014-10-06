@@ -7,8 +7,10 @@ import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
-import static junit.framework.Assert.*;
-import static se.emilsjolander.sprinkles.ModelInfo.*;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.assertTrue;
+import static se.emilsjolander.sprinkles.ModelInfo.ColumnField;
 
 @Config(emulateSdk = 18)
 @RunWith(RobolectricTestRunner.class)

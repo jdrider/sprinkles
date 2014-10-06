@@ -20,7 +20,9 @@ import se.emilsjolander.sprinkles.annotations.Key;
 import se.emilsjolander.sprinkles.annotations.Table;
 import se.emilsjolander.sprinkles.exceptions.NoTableAnnotationException;
 
-import static junit.framework.Assert.*;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.assertTrue;
 
 @Config(emulateSdk = 18)
 @RunWith(RobolectricTestRunner.class)

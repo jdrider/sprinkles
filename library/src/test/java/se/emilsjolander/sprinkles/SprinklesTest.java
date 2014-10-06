@@ -15,7 +15,9 @@ import se.emilsjolander.sprinkles.exceptions.NoTypeSerializerFoundException;
 import se.emilsjolander.sprinkles.typeserializers.SqlType;
 import se.emilsjolander.sprinkles.typeserializers.TypeSerializer;
 
-import static junit.framework.Assert.*;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
 
 @Config(emulateSdk = 18)
 @RunWith(RobolectricTestRunner.class)
